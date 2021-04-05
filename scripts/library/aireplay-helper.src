@@ -1,0 +1,20 @@
+AireplayHelper = {}
+
+AireplayHelper.constructor = function(computer)
+	self.computer = computer
+	return self
+end function
+
+AireplayHelper.getAireplayFilePath = function()
+	return [current_path, "file.cap"].join("/")
+end function
+
+AireplayHelper.clearAireplayFile = function()
+	file = self.computer.File(self.getAireplayFilePath())
+
+	if file != null then
+		file.delete
+	end if
+end function
+
+module.exports = AireplayHelper

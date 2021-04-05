@@ -1,0 +1,32 @@
+#import Argv from library/get-param;
+#import FS from library/fs;
+
+argv = new Argv
+
+target = argv.get(0, true)
+
+fs = new FS
+fs.constructor(get_shell.host_computer)
+
+if fs.doesFileExist(target) == false then
+	exit("File does not exist")
+end if
+
+prompt = user_input("You are about to delete all folders in " + target + ". Are you sure? (Y/n)")
+
+if prompt != "Y" then
+	exit("Aborted...")
+end if
+
+folder = fs.getFilesInFolder(target)
+
+if folder == null then
+	exit("Could not find folder.")
+end if
+
+for file in folder
+	print("Deleting " + file.path + "...")
+	file.delete
+end for
+
+exit("Done!")

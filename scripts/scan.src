@@ -1,0 +1,29 @@
+#import Argv from library/get-param;
+#import FS from library/fs;
+
+argv = new Argv
+
+//add args
+filter = argv.get(0, true)
+
+//default variables
+myShell = get_shell
+myComputer = myShell.host_computer
+
+//initialize fs
+fs = new FS
+
+fs.constructor(myComputer)
+
+//add code
+items = fs.getTree("/", filter)
+
+if items.len == 0 then
+	exit("Nothing found.")
+end if
+
+for item in items
+	print("Found " + item.path + "...")
+end for
+
+exit("Done!")

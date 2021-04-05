@@ -1,0 +1,7 @@
+Path = {}
+
+Path.join = function(path, name)
+	return [path, name].join("/")
+end function
+
+module.exports = Path

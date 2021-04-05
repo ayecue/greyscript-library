@@ -1,0 +1,16 @@
+Argv = {}
+
+Argv.get = function(index = 0, mandatory = false, helpMessage = null)
+	if params.hasIndex(index) then
+		return params[index]
+	end if
+	if mandatory then
+		if helpMessage != null then
+			print(helpMessage)
+		end if
+		exit("Error cannot find param[" + index + "]")
+	end if
+	return null
+end function
+
+module.exports = Argv

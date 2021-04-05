@@ -1,0 +1,64 @@
+#import Path from path;
+
+FS = {}
+
+FS.constructor = function(computer)
+	self.computer = computer
+	return self
+end function
+
+FS.createFile = function(pathString, name)
+	path = new Path
+	self.computer.touch(pathString, name)
+	return self.openFile(path.join(pathString, name))
+end function
+
+FS.openFile = function(pathString)
+	return self.computer.File(pathString)
+end function
+
+FS.doesFileExist = function(pathString)
+	file = self.openFile(pathString)
+	return file != null
+end function
+
+FS.getFilesInFolder = function(pathString)
+	parent = self.openFile(pathString)
+
+	if parent.is_folder then
+		return parent.get_folders + parent.get_files
+	end if
+
+	return null
+end function
+
+FS.getTreeIterator = function(file, collection, nameFilter)
+	if nameFilter == null or file.name.indexOf(nameFilter) != null then
+		collection.push(file)
+	end if
+
+	if file.is_folder then
+		entries = file.get_folders + file.get_files
+
+		for entry in entries
+			self.getTreeIterator(entry, collection, nameFilter)
+		end for
+	end if
+
+	return collection
+end function
+
+FS.getTree = function(pathString, nameFilter)
+	file = pathString
+
+	if typeof(pathString) == "string" then
+		file = self.openFile(pathString)
+		if file == null then
+			return null
+		end if
+	end if
+
+	return self.getTreeIterator(file, [], nameFilter)
+end function
+
+module.exports = FS

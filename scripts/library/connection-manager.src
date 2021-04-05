@@ -1,0 +1,92 @@
+Connection = {}
+
+Connection.constructor = function(shell, ip, port, username, password)
+	self.parentShell = shell
+	self.ip = ip
+	self.port = port
+	self.username = username
+	self.password = password
+	self.start()
+
+	return self
+end function
+
+Connection.start = function()
+	self.shell = self.parentShell.connect_service(self.ip, self.port, self.username, self.password)
+	return self
+end function
+
+ConnectionManager = {}
+
+ConnectionManager.Connection = Connection
+
+ConnectionManager.constructor = function(shell)
+	self.shell = shell
+	self.connections = []
+	return self
+end function
+
+ConnectionManager.connect = function(ip, port, username, password)
+	connection = new self.Connection
+	connection.constructor(self.shell, ip, port, username, password)
+	self.connections.push(connection)
+	return connection
+end function
+
+ConnectionManager.disconnect = function(ip)
+	index = self.findConnectionIndex(ip)
+	maxIndex = self.connections.len
+
+	if index == null then
+		return self.connections
+	end if
+
+	if index == 0 then
+		self.connections = slice(self.connections, 1, max)
+	else if (index == max - 1) then
+		self.connections = slice(self.connections, 0, max - 1)
+	else
+		before = slice(self.connections, 0, index)
+		after = slice(self.connections, index + 1, max)
+		self.connections = before + after
+	end if
+
+	return self.connections
+end function
+
+ConnectionManager.findConnectionIndex = function(ip)
+	index = 0
+	maxIndex = self.connections.len
+
+	while index < maxIndex
+		item = self.connections[index]
+		if item.ip == ip then
+			return index
+		end if
+		index = index + 1
+	end while
+
+	return null
+end function
+
+ConnectionManager.findConnection = function(ip)
+	index = self.findConnectionIndex(ip)
+
+	if index != null then
+		return self.connections[index]
+	end if
+
+	return null
+end function
+
+ConnectionManager.getOrConnect = function(ip, port, username, password)
+	connection = self.findConnection(ip)
+
+	if connection == null then
+		connection = self.connect(ip, port, username, password)
+	end if
+
+	return connection
+end function
+
+module.exports = ConnectionManager

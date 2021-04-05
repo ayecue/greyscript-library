@@ -1,0 +1,70 @@
+crypto = include_lib("/lib/crypto.so")
+
+#import Argv from library/get-param;
+#import NewtworkDeviceManager from library/network-devices;
+#import NetDeviceManager from library/net-devices;
+#import AireplayHelper from library/aireplay-helper;
+
+argv = new Argv
+
+networkDeviceIndex = argv.get(0)
+netDeviceIndex = argv.get(1)
+maxAcks = argv.get(2)
+
+myShell = get_shell
+myComputer = myShell.host_computer
+
+networkDeviceManager = new NewtworkDeviceManager
+netDeviceManager = new NetDeviceManager
+aireplayHelper = new AireplayHelper
+
+networkDeviceManager.constructor(myComputer)
+netDeviceManager.constructor(myComputer)
+aireplayHelper.constructor(myComputer)
+
+if networkDeviceIndex == null then
+	networkDeviceManager.showNetworkDevices()
+else
+	selectedNetworkDevice = networkDeviceManager.getNetworkDeviceByIndex(to_int(networkDeviceIndex))
+
+	if selectedNetworkDevice == null then
+		exit("No network device")
+	end if
+
+	if netDeviceIndex == null then
+		netDeviceManager.showNetDevices(selectedNetworkDevice)
+	else
+		selectedNetDevice = netDeviceManager.getNetDeviceByIndex(selectedNetworkDevice, to_int(netDeviceIndex))
+
+		if selectedNetDevice == null then
+			exit("No net device")
+		end if
+
+		if maxAcks == null then
+			maxAcks = 500
+		else
+			maxAcks = to_int(maxAcks)
+		end if
+
+		print("Looking for " + selectedNetDevice.bssid + "/" + selectedNetDevice.essid + " with " + selectedNetworkDevice.name + "... (" + maxAcks + ")")
+
+		aireplayHelper.clearAireplayFile()
+		crypto.aireplay(selectedNetDevice.bssid, selectedNetDevice.essid, maxAcks)
+
+		fileCapPath = aireplayHelper.getAireplayFilePath()
+		capFile = myComputer.File(fileCapPath)
+
+		if capFile == null then
+			exit("No cap file")
+		end if
+
+		password = crypto.aircrack(fileCapPath)
+		capFile.delete
+
+		if password == null then
+			exit("No password")
+		end if
+
+		exit("Found password: " + password)
+	end if
+end if

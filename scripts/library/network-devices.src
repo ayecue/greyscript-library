@@ -1,0 +1,85 @@
+NetworkDevice = {}
+
+NetworkDevice.constructor = function(name, chipset, monitor)
+	self.name = parsed[0]
+	self.chipset = parsed[1]
+	self.monitor = parsed[2]
+
+	return self
+end function
+
+NetworkDevice.createNetworkDeviceFromString = function(networkDeviceString)
+	parsed = networkDeviceString.split(" ")
+
+	return self.constructor(parsed[0], parsed[1], parsed[2])
+end function
+
+NetworkDeviceManager = {}
+
+NetworkDeviceManager.NetworkDevice = NetworkDevice
+
+NetworkDeviceManager.constructor = function(computer)
+	self.computer = computer
+	return self
+end function
+
+NetworkDeviceManager.getNetworkDevices = function()
+	networkDevices = self.computer.network_devices
+	list = networkDevices.split(NEW_LINE_OPERATOR)
+
+	if list.len == 0 then
+		return []
+	end if
+
+	if list[list.len - 1] == "" then
+		list.pop()
+	end if
+
+	result = []
+	index = 0
+	maxIndex = list.len
+
+	while index < maxIndex
+		item = new self.NetworkDevice
+		item = item.createNetworkDeviceFromString(list[index])
+		result.push(item)
+		index = index + 1
+	end while
+
+	return result
+end function
+
+NetworkDeviceManager.showNetworkDevices = function()
+	list = self.getNetworkDevices()
+
+	index = 0
+	maxIndex = list.len
+
+	print("Select device...")
+
+	while index < maxIndex
+		item = list[index]
+		print(index + ".) " + item.name)
+		index = index + 1
+	end while
+end function
+
+NetworkDeviceManager.getNetworkDeviceByIndex = function(networkDeviceIndex = 0)
+	list = self.getNetworkDevices()
+
+	if list.hasIndex(networkDeviceIndex) == 0 then
+		print("Error: No network device found with that index.")
+		return null
+	end if
+
+	device = list.values[networkDeviceIndex]
+
+	if device.monitor == "false" then
+		print("Error: Monitor mode is false.")
+		return null
+	end if
+
+	return device
+end function
+
+module.exports = NetworkDeviceManager

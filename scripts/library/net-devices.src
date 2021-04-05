@@ -1,0 +1,73 @@
+NetDevice = {}
+
+NetDevice.constructor = function(bssid, pwr, essid)
+	self.bssid = parsed[0]
+	self.pwr = parsed[1]
+	self.essid = parsed[2]
+
+	return self
+end function
+
+NetDevice.toString = function()
+	return [self.bssid,self.pwr,self.essid].join("/")
+end function
+
+NetDevice.createNetDeviceFromString = function(netDeviceString)
+	parsed = netDeviceString.split(" ")
+
+	return self.constructor(parsed[0], parsed[1], parsed[2])
+end function
+
+NetDeviceManager = {}
+
+NetDeviceManager.NetDevice = NetDevice
+
+NetDeviceManager.constructor = function(computer)
+	self.computer = computer
+	return self
+end function
+
+NetDeviceManager.getNetDevices = function(networkDevice)
+	netDevices = self.computer.wifi_networks(networkDevice.name)
+
+	result = []
+	index = 0
+	maxIndex = netDevices.len
+
+	while index < maxIndex
+		item = new self.NetDevice
+		item = item.createNetDeviceFromString(netDevices[index])
+		result.push(item)
+		index = index + 1
+	end while
+
+	return result
+end function
+
+NetDeviceManager.showNetDevices = function(networkDevice)
+	list = self.getNetDevices(networkDevice)
+
+	index = 0
+	maxIndex = list.len
+
+	print("Select net device...")
+
+	while index < maxIndex
+		item = list[index]
+		print(index + ".) " + item.toString())
+		index = index + 1
+	end while
+end function
+
+NetDeviceManager.getNetDeviceByIndex = function(networkDevice, netDeviceIndex = 0)
+	list = self.getNetDevices(networkDevice)
+
+	if list.hasIndex(netDeviceIndex) == 0 then
+		print("Error: No net device found with that index.")
+		return null
+	end if
+
+	return list.values[netDeviceIndex]
+end function
+
+module.exports = NetDeviceManager

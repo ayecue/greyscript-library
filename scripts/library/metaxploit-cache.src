@@ -1,0 +1,62 @@
+#import Collection from collection;
+#import FS from fs;
+
+MetaxploitCache = {}
+
+MetaxploitCache.Collection = Collection
+MetaxploitCache.FS = FS
+
+MetaxploitCache.constructor = function(mx, computer, output)
+	self.mx = mx
+	self.fs = (new self.FS).constructor(computer)
+	self.cache = []
+	self.cacheFile = null
+	self.output = output
+	if (output == null) then self.output = current_path
+	self.initialization()
+	return self
+end function
+
+MetaxploitCache.initialization = function()
+	cacheFile = self.fs.openFile(self.output + "/exploits.conf")
+	
+	if (cacheFile == null) then
+		cacheFile = self.fs.createFile(self.output, "exploits.conf")
+	end if
+
+	self.cacheFile = cacheFile
+	self.cache = cacheFile.get_content.split(NEW_LINE_OPERATOR)
+end function
+
+MetaxploitCache.get = function(ml, shouldRefresh)
+	cacheCollection = (new self.Collection).constructor(self.cache)
+	iterator = (new self.Collection.Iterator).constructor()
+	
+	iterator.callback = function(item, index, instance)
+		parsed = item.split(";")
+		libname = parsed.pull()
+		libversion = parsed.pull()
+		return libname == ml.lib_name and libversion == ml.version
+	end function
+	
+	mareas = cacheCollection.find(iterator)
+	
+	if (mareas == null) then
+		mareas = self.mx.scan(metalib)
+		self.cache.push([metalib.lib_name, ml.version, mareas.join(",")].join(";"))
+		self.cacheFile.set_content(self.cache.join(NEW_LINE_OPERATOR))
+	else if shouldRefresh then
+		index = cacheCollection.findIndex(iterator)
+		mareas = self.mx.scan(metalib)
+		cacheCollection = cacheCollection.splice(index, 1, [[ml.lib_name, ml.version, mareas.join(",")].join(";")])
+		self.cache = cacheCollection.value
+		self.cacheFile.set_content(self.cache.join(NEW_LINE_OPERATOR))
+	else
+		mareas = mareas.split(";").pop().split(",")
+	end if
+
+	return mareas
+end function
+
+module.exports = MetaxploitCache
+

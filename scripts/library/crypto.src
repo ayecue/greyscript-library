@@ -1,0 +1,115 @@
+#import Error from error;
+
+Crypto = {}
+
+Crypto.defaultCharset = "QWERTZUIOPASDFGHJKLYXCVBNMqwertzuiopasdfghjklyxcvbnm1234567890+-"
+Crypto.Error = Error
+
+Crypto.constructor = function(charset)
+	self.table = charset
+	if charset == null then self.table = self.defaultCharset
+	if self.table.len != 64 then (new self.Error).constructor("Invalid charset $0...", [self.table]).throw()
+	return self
+end function
+
+Crypto.getHash = function(pw)
+	hash = []
+	x = md5(pw)
+	for char in x
+		hash.push(char.code)
+	end for
+	hash.reverse
+	return hash
+end function
+
+Crypto.encrypt = function(str, pw)
+	hash = self.getHash(pw)
+	hashPointer = 0
+	output = []
+	position = 0
+	padding = str.len % 3
+	max = str.len - padding
+	get = function(v)
+		if (not self.table.hasIndex(v)) then
+			(new self.Error).constructor("Invalid index $0...", [v]).throw()
+		end if
+		return self.table[v]
+	end function
+	AND = function(a, b)
+		return bitwise("&", a, b)
+	end function
+	LSHIFT = function(a, b)
+		return bitwise("<<", a, b)
+	end function
+	RSHIFT = function(a, b)
+		return bitwise(">>", a, b)
+	end function
+	while position < max
+		m = hash[position % hash.len - 1]
+		a = LSHIFT(str[position].code + m, 16)
+		b = LSHIFT(str[position + 1].code + m, 8)
+		c = str[position + 2].code + m
+		buffer = a + b + c
+		output.push(get(AND(RSHIFT(buffer, 18), 63)))
+		output.push(get(AND(RSHIFT(buffer, 12), 63)))
+		output.push(get(AND(RSHIFT(buffer, 6), 63)))
+		output.push(get(AND(buffer, 63)))
+		position = position + 3
+	end while
+	if (padding == 2) then
+		m = hash[position % hash.len - 1]
+		a = LSHIFT(str[position].code + m, 8)
+		b = str[position + 1].code + m
+		buffer = a + b
+		output.push(get(RSHIFT(buffer, 10)))
+		output.push(get(AND(RSHIFT(buffer, 4), 63)))
+		output.push(get(AND(LSHIFT(buffer, 2), 63)))
+		output.push("=")
+	else if (padding == 1) then
+		m = hash[position % hash.len - 1]
+		buffer = str[position].code + m
+		output.push(get(RSHIFT(buffer, 2)))
+		output.push(get(AND(LSHIFT(buffer, 4), 63)))
+		output.push("==")
+	end if
+	return output.join("")
+end function
+
+Crypto.decrypt = function(str, pw)
+	hash = self.getHash(pw)
+	hashPointer = 0
+	output = []
+	bitCounter = 0
+	bitStorage = 0
+	position = 0
+	hashPointer = 0
+	max = str.len
+	AND = function(a, b)
+		return bitwise("&", a, b)
+	end function
+	RSHIFT = function(a, b)
+		return bitwise(">>", a, b)
+	end function
+	while position < max
+		buffer = self.table.indexOf(str[position])
+		currentBit = bitCounter
+		bitCounter = bitCounter + 1
+		if (currentBit % 4) then
+			bitStorage = bitStorage * 64 + buffer
+		else
+			bitStorage = buffer
+		end if
+		if (currentBit % 4) then
+			m = hash[(floor(hashPointer / 3) * 3) % hash.len - 1]
+			operation = AND(-2 * bitCounter, 6)
+			operation = RSHIFT(bitStorage, operation)
+			operation = AND(255, operation)
+			if (operation != 0) then output.push(char(operation - m))
+			hashPointer = hashPointer + 1
+		end if
+		position = position + 1
+	end while
+	return output.join("")
+end function
+
+module.exports = Crypto

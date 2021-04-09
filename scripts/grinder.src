@@ -1,0 +1,80 @@
+#import Argv from library/get-param;
+#import FS from library/fs;
+#import AppHelper from library/app-helper;
+#import Error from library/error;
+
+argDefinitions = []
+
+argDefinitions.push((new Argv.Arg).constructor("h", "help", Argv.ArgType.FLAG, "Print help"))
+argDefinitions.push((new Argv.Arg).constructor("d", "debug", Argv.ArgType.FLAG, "Debug mode"))
+argDefinitions.push((new Argv.Arg).constructor("dc", "decrypt", Argv.ArgType.FLAG, "Auto Decrypt"))
+argDefinitions.push((new Argv.Arg).constructor("o", "output", Argv.ArgType.VALUE, "Output"))
+
+helpBlock = []
+
+helpBlock.push("Grinder CLI")
+helpBlock.push("Example: <b>grinder</b>")
+helpBlock.push("")
+
+for argDefinition in argDefinitions
+	helpBlock.push(argDefinition.toString())
+end for
+
+help = helpBlock.join(NEW_LINE_OPERATOR)
+
+argv = (new Argv).constructor(argDefinitions, help)
+
+argv.parse()
+
+if (argv.getWithKey("help") == true) then
+	exit(help)
+end if
+
+decryptMode = argv.getWithKey("decrypt")
+fs = (new FS).constructor(get_shell.host_computer)
+ah = (new AppHelper).constructor(fs)
+beatupPath = ah.load("beatup")
+outputDir = argv.getWithKey("output")
+
+if (outputDir == null) then
+	outputDir = current_path
+end if
+
+if (beatupPath == null) then (new Error).constructor("Beatup bin is not found...").throw()
+
+debug = function(msg)
+	if (argv.getWithKey("debug")) then
+		print(msg)
+	end if
+end function
+
+random = function(min, max)
+	return floor((rnd * max) + min)
+end function
+
+generateIp = function()
+	ip = [random(1, 255), random(1, 255), random(1, 255), random(1, 255)].join(".")
+	
+	debug("Generate " + ip + "...")
+	if (not is_valid_ip(ip) or is_lan_ip(ip) or get_router(ip) == null) then
+		return null
+	end if
+	
+	return ip
+end function
+
+while true
+	ip = generateIp()
+	if (ip == null) then
+		continue
+	end if
+	
+	launchParams = [ip]
+	launchParams.push("--output " + outputDir)
+	if (debug) then launchParams.push("--debug")
+	if (decryptMode) then launchParams.push("--decrypt")
+	
+	get_shell.launch(beatupPath, launchParams.join(" "))
+	
+	wait(0.5)
+end while

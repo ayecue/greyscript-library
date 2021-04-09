@@ -1,0 +1,57 @@
+String = {}
+
+String.constructor = function(str)
+	self.str = str
+	return self
+end function
+
+String.parse = function(values)
+	result = self.str
+	index = 0
+	maxIndex = values.len
+
+	while index < maxIndex
+		result = result.replace("$"+index, values[index])
+		index = index + 1
+	end while
+
+	return (new self).constructor(result)
+end function
+
+String.startsWith = function(str)
+	return self.str.indexOf(str) == 0
+end function
+
+String.substr = function(startIndex, endIndex)
+	return (new self).constructor(slice(self.str, startIndex, endIndex))
+end function
+
+String.indexOf = function(str)
+	return self.str.indexOf(str)
+end function
+
+String.replace = function(str, newStr)
+	return (new self).constructor(self.str.replace(str, newStr))
+end function
+
+String.remove = function(str)
+	return (new self).constructor(self.str.remove(str))
+end function
+
+String.toString = function()
+	return self.str
+end function
+
+String.length = function()
+	return self.str.len
+end function
+
+String.split = function(seperator)
+	return self.str.split(seperator)
+end function
+
+String.trim = function(seperator)
+	return (new self).constructor(self.str.trim())
+end function
+
+module.exports = String

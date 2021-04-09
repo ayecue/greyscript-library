@@ -1,0 +1,67 @@
+#import Argv from library/get-param;
+#import Error from library/error;
+
+argDefinitions = []
+
+argDefinitions.push((new Argv.Arg).constructor("h", "help", Argv.ArgType.FLAG, "Print help"))
+argDefinitions.push((new Argv.Arg).constructor("r", "remote", Argv.ArgType.FLAG, "Remote"))
+
+helpBlock = []
+
+helpBlock.push("Grabber CLI")
+helpBlock.push("Example: <b>grabber</b>")
+helpBlock.push("")
+
+for argDefinition in argDefinitions
+	helpBlock.push(argDefinition.toString())
+end for
+
+help = helpBlock.join(NEW_LINE_OPERATOR)
+
+argv = (new Argv).constructor(argDefinitions, help)
+
+argv.parse()
+
+if (argv.getWithKey("help") == true) then
+	exit(help)
+end if
+
+creds = argv.get(0)
+ip = argv.get(1)
+port = argv.get(2)
+isRemote = argv.getWithKey("remote")
+shell = get_shell
+
+if (isRemote) then
+	parsedCreds = creds.split("@")
+	user = parsedCreds.pull()
+	pw = parsedCreds.pull()
+	if (port == null) then
+		port = "22"
+	end if
+	shell = shell.connect_service(ip, port.to_int, user, pw)
+end if
+
+computer = shell.host_computer
+
+showFile = function (path)
+	file = computer.File(path)
+	if (file == null) then
+		print(path + " not found...")
+	else
+		print(file.get_content)
+	end if
+end function
+
+print("<b>passwd file</b>")
+showFile("/etc/passwd")
+
+homeFolder = computer.File("/home")
+folders = homeFolder.get_folders
+for folder in folders
+	print("<b>Bank file</b>")
+	showFile(folder.path + "/Config/Bank.txt")
+	
+	print("<b>Mail file</b>")
+	showFile(folder.path + "/Config/Mail.txt")
+end for

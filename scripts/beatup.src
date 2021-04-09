@@ -1,0 +1,207 @@
+metaxploit = include_lib("/lib/metaxploit.so")
+
+if not metaxploit then
+	metaxploit = include_lib(current_path + "/metaxploit.so")
+end if
+if not metaxploit then (new Error).constructor("Cannot find metaxploit...").throw()
+
+crypto = include_lib("/lib/crypto.so")
+
+if not crypto then
+	crypto = include_lib(current_path + "/crypto.so")
+end if
+if not crypto then (new Error).constructor("Cannot find crypto...").throw()
+
+#import Argv from library/get-param;
+#import MetaxploitCache from library/metaxploit-cache;
+#import Error from library/error;
+#import FS from library/fs;
+
+argDefinitions = []
+
+argDefinitions.push((new Argv.Arg).constructor("h", "help", Argv.ArgType.FLAG, "Print help"))
+argDefinitions.push((new Argv.Arg).constructor("d", "debug", Argv.ArgType.FLAG, "Debug mode"))
+argDefinitions.push((new Argv.Arg).constructor("dc", "decrypt", Argv.ArgType.FLAG, "Auto Decrypt"))
+argDefinitions.push((new Argv.Arg).constructor("o", "output", Argv.ArgType.VALUE, "Output"))
+
+helpBlock = []
+
+helpBlock.push("Beatup CLI")
+helpBlock.push("Example: <b>beatup ip</b>")
+helpBlock.push("")
+
+for argDefinition in argDefinitions
+	helpBlock.push(argDefinition.toString())
+end for
+
+help = helpBlock.join(NEW_LINE_OPERATOR)
+
+argv = (new Argv).constructor(argDefinitions, help)
+
+argv.parse()
+
+if (argv.getWithKey("help") == true) then
+	exit(help)
+end if
+
+ip = argv.get(0, true)
+decryptMode = argv.getWithKey("decrypt")
+fs = (new FS).constructor(get_shell.host_computer)
+outputDir = argv.getWithKey("output")
+
+if (outputDir == null) then
+	outputDir = current_path
+end if
+
+debug = function(msg)
+	if (argv.getWithKey("debug")) then
+		print(msg)
+	end if
+end function
+
+random = function(min, max)
+	return floor((rnd * max) + min)
+end function
+
+getOpenPorts = function(ip)
+	router = get_router(ip)
+	usedPorts = router.used_ports
+	openPorts = []
+	
+	debug("Number of open ports " + usedPorts.len + " on " + ip + "...")
+	
+	for port in usedPorts
+		if (port.is_closed) then continue
+		openPorts.push(port.port_number)
+		debug("Found open port " + port.port_number + " on " + ip + "...")
+	end for
+	
+	return openPorts
+end function
+
+decryptFile = function(file)
+	lines = file.get_content.split(NEW_LINE_OPERATOR)
+	decryptedLines = []
+	for line in lines
+		parsed = line.split(":")
+		user = parsed.pull()
+		pw = parsed.pull()
+		if (user == null or pw == null) then
+			continue
+		end if
+		pw = crypto.decipher(pw)
+		decryptedLines.push([user, pw].join(":"))
+	end for
+	return decryptedLines.join(NEW_LINE_OPERATOR)
+end function
+
+dumpPasswd = function(computer)
+	debug("Trying to dump passwd...")
+	file = computer.File("/etc/passwd")
+	if file == null then return false
+	if not file.has_permission("r") then return false
+	if file.is_binary then return false
+	debug("Dumped passwd...")
+	if (decryptMode) then
+		return decryptFile(file)
+	end if
+	return file.get_content
+end function
+
+dumpOther= function(computer)
+	debug("Trying to dump other data...")
+	homeFolder = computer.File("/home")
+	folders = homeFolder.get_folders
+	content = []
+	addFile = function (path)
+		file = computer.File(path)
+		if (file != null) then
+			fileContent = file.get_content
+			if (decryptMode) then
+				fileContent = decryptFile(file)
+			end if
+			content.push(fileContent)
+		end if
+	end function
+	for folder in folders
+		addFile(folder.path + "/Config/Bank.txt")
+		addFile(folder.path + "/Config/Mail.txt")
+	end for
+	if (content.len == 0) then
+		return false
+	end if
+	debug("Dumped other data...")
+	return content.join(NEW_LINE_OPERATOR)
+end function
+
+addDump = function(title, dump)
+	dumpFile = fs.openFile(outputDir + "/dump.txt")
+	
+	if (dumpFile == null) then
+		dumpFile = fs.createFile(outputDir, "dump.txt")
+	end if
+	
+	content = dumpFile.get_content
+	content = content + NEW_LINE_OPERATOR + [title, dump].join(NEW_LINE_OPERATOR)
+	dumpFile.set_content(content)
+	print(dump)
+end function
+
+launchAttack = function(ip)
+	dumps = {}
+	dumps.passwd = false
+	dumps.other = false
+	attack = function(nsession)
+		metalib = nsession.dump_lib
+		mxc = (new MetaxploitCache).constructor(metaxploit, get_shell.host_computer, outputDir)
+		mareas = mxc.get(metalib)
+		
+		for marea in mareas
+			vuls = metaxploit.scan_address(metalib, marea)
+			lines = vuls.split(NEW_LINE_OPERATOR)
+			for line in lines
+				if (line.indexOf("Unsafe check") != 0) then continue
+				start = line.indexOf(">")
+				last = line.indexOf("<", start)
+				unsec = line[start + 1:last]
+				debug("Execute attack on " + marea + " with unsec " + unsec + "...")
+				result = metalib.overflow(marea, unsec)
+				type = typeof(result)
+				debug("Result is " + result + " of type " + type + "...")
+				computer = null
+				if (type == "shell") then computer = result.host_computer
+				if (type == "computer") then computer = result
+				if (not computer) then continue
+				if (dumps.passwd == false) then dumps.passwd = dumpPasswd(computer)
+				if (dumps.other == false) then dumps.other = dumpOther(computer)
+				if (dumps.passwd != false and dumps.other != false) then break
+			end for
+		end for
+	end function
+	
+	nsession = metaxploit.net_use(ip)
+	openPorts = getOpenPorts(ip)
+	attack(nsession)
+	
+	for port in openPorts
+		if (dumps.passwd != false and dumps.other != false) then break
+		nsession = metaxploit.net_use(ip, port)
+		if (nsession == null) then continue
+		attack(nsession)
+	end for
+	
+	if (dumps.passwd == false and dumps.other == false) then
+		print("Unlucky with " + ip)
+		return
+	end if
+	
+	print("Data for " + ip)
+	if (dumps.passwd != false) then addDump("---- passwd on " + ip, dumps.passwd)
+	if (dumps.other != false) then addDump("---- other data on " + ip, dumps.other)
+end function
+
+print("Launch attack on " + ip + "...")
+launchAttack(ip)
+
+
+

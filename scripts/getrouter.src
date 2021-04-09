@@ -1,0 +1,34 @@
+#import Argv from library/get-param;
+
+argv = (new Argv)
+
+target = argv.get(0, true)
+
+router = get_router(target)
+
+print("Public ip: " + router.public_ip)
+print("Local ip: " + router.local_ip)
+print("ESSID: " + router.essid_name)
+print("BSSID: " + router.bssid_name)
+print("KV: " + router.kernel_version)
+print("FR: " + router.firewall_rules)
+
+portInfo = function(port)
+	return router.port_info(port) + " exposed on port " + port.port_number
+end function
+
+print("-- Used ports --")
+ports = router.used_ports
+for port in ports
+	print("-- " + portInfo(port))
+end for
+
+print("-- Device LAN ips --")
+devices = router.devices_lan_ip
+for device in devices
+	print("-- " + device)
+	devicesPorts = router.device_ports(device)
+	for devicesPort in devicesPorts
+		print("---- " + portInfo(devicesPort))
+	end for
+end for

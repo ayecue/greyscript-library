@@ -1,7 +1,31 @@
 Path = {}
 
-Path.join = function(path, name)
-	return [path, name].join("/")
+Path.resolve = function(a)
+	parts = a.split("/")
+	result = []
+
+	for part in parts
+		if (part == "..") then
+			result.pop()
+		else if (part != "" and part != ".") then
+			result.push(part)
+		end if
+	end for
+
+	resolved = result.join("/")
+
+	if (a.indexOf("/") == 0) then
+		resolved = "/" + resolved
+	end if
+
+	return resolved
+end function
+
+Path.join = function(a, b)
+	if (b.indexOf("/") == 0) then
+		b = b[1:]
+	end if
+	return self.resolve([a, b].join("/"))
 end function
 
 module.exports = Path

@@ -8,7 +8,7 @@ target = argv.get(0, true)
 fs = new FS
 fs.constructor(get_shell.host_computer)
 
-if fs.doesFileExist(target) == false then
+if not fs.doesFileExist(target) then
 	exit("File does not exist")
 end if
 

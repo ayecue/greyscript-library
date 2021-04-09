@@ -1,0 +1,19 @@
+AppHelper = {}
+
+AppHelper.constructor = function(fs)
+	self.fs = fs
+	return self
+end function
+
+AppHelper.load = function(app)
+	appPaths = ["/bin/" + app, "/usr/bin/" + app, current_path + app]
+	for appPath in appPaths
+		app = self.fs.openFile(appPath)
+		if (app == null) then continue
+		if (app.is_binary) then return appPath
+	end for
+	
+	return null
+end function
+
+module.exports = AppHelper

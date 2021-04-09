@@ -1,14 +1,101 @@
+#import String from string;
+#import Error from error;
+
+ArgType = {}
+
+ArgType.FLAG = "FLAG"
+ArgType.VALUE = "VALUE"
+
+Arg = {}
+
+Arg.String = String
+
+Arg.constructor = function(shortcut, command, type, description)
+	self.shortcut = shortcut
+	self.command = command
+	self.type = type
+	self.description = description
+	return self
+end function
+
+Arg.toString = function()
+	str = (new self.String).constructor("-$0 --$1 - <b>$2</b>")
+	return str.parse([self.shortcut, self.command, self.description]).toString()
+end function
+
 Argv = {}
 
-Argv.get = function(index = 0, mandatory = false, helpMessage = null)
-	if params.hasIndex(index) then
-		return params[index]
+Argv.ArgType = ArgType
+Argv.Arg = Arg
+Argv.Error = Error
+
+Argv.constructor = function(defs, help)
+	self.args = params
+	self.listed = {}
+	self.unlisted = params
+	self.defs = defs
+	self.help = help
+	return self
+end function
+
+Argv.parse = function()
+	args = self.args
+	defs = self.defs
+	listed = {}
+	unlisted = []
+	index = 0
+	maxIndex = args.len
+	findDef = function(arg)
+		for def in defs
+			if ("--" + def.command == arg or "-" + def.shortcut == arg) then
+				return def
+			end if
+		end for
+		return null
+	end function
+
+	while index < maxIndex
+		item = args[index].trim()
+		def = findDef(item)
+		if (def == null) then
+			unlisted.push(item)
+		else
+			if (def.type == self.ArgType.VALUE) then
+				index = index + 1
+				value = args[index]
+				listed[def.command] = value
+			else if (def.type == self.ArgType.FLAG) then
+				listed[def.command] = true
+			end if
+		end if
+		index = index + 1
+	end while
+
+	self.listed = listed
+	self.unlisted = unlisted
+
+	return self
+end function
+
+Argv.get = function(index = 0, mandatory = false)
+	if not self.hasIndex("unlisted") then
+		self.unlisted = params
+	end if
+	if not self.hasIndex("help") then
+		self.help = "n/a"
+	end if
+	if self.unlisted.hasIndex(index) then
+		return self.unlisted[index]
 	end if
 	if mandatory then
-		if helpMessage != null then
-			print(helpMessage)
-		end if
-		exit("Error cannot find param[" + index + "]")
+		(new self.Error).constructor("Error cannot find param[$0]$1$2$3", [index, NEW_LINE_OPERATOR, NEW_LINE_OPERATOR, self.help]).throw()
+	end if
+	return null
+end function
+
+Argv.getWithKey = function(key)
+	if self.listed.hasIndex(key) then
+		return self.listed[key]
 	end if
 	return null
 end function

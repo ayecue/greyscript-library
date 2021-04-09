@@ -1,0 +1,122 @@
+#import Error from error;
+
+Iterator = {}
+
+Iterator.constructor = function()
+	self.callback = function(item)
+		print(item)
+	end function
+	return self
+end function
+
+Collection = {}
+
+Collection.Iterator = Iterator
+Collection.Error = Error
+
+Collection.constructor = function(arr)
+	self.arr = arr
+	return self
+end function
+
+Collection.slice = function(index, endIndex)
+	return (new self).constructor(slice(self.arr, index, endIndex))
+end function
+
+Collection.push = function(item)
+	self.arr.push(item)
+	return self
+end function
+
+Collection.splice = function(index, amount, values)
+	before = []
+	after = []
+	max = self.arr.len
+	
+	if (index + amount > max) then
+		(new self.Error).constructor("Error array too short: $0", [max]).throw()
+	end if
+	
+	if (index == 0) then
+		after = slice(self.arr, amount, max)
+	else if (index + amount == max) then
+		before = slice(self.arr, 0, index)
+	else
+		before = slice(self.arr, 0, index)
+		after = slice(self.arr, index + amount, max)
+	end if
+	
+	return (new self).constructor(before + values + after)
+end function
+
+Collection.map = function(iterator)
+	index = 0
+	result = []
+	
+	for item in self.arr
+		result.push(iterator.callback(item, index, self))
+		index = index + 1
+	end for
+	
+	return (new self).constructor(result)
+end function
+
+Collection.filter = function(iterator)
+	index = 0
+	result = []
+	
+	for item in self.arr
+		isValid = iterator.callback(item, index, self)
+		
+		if (isValid == true) then
+			result.push(item)
+		end if
+		
+		index = index + 1
+	end for
+	
+	return (new self).constructor(result)
+end function
+
+Collection.findIndex = function(iterator)
+	index = 0
+	
+	for item in self.arr
+		result = iterator.callback(item, index, self)
+		
+		if (result == true) then
+			return index
+		end if
+		
+		index = index + 1
+	end for
+	
+	return null
+end function
+
+Collection.find = function(iterator)
+	index = self.findIndex(iterator)
+	
+	if (index == null) then
+		return null
+	end if
+	
+	return self.arr[index]
+end function
+
+Collection.forEach = function(iterator)
+	index = 0
+	
+	for item in self.arr
+		iterator.callback(item, index, self)
+		index = index + 1
+	end for
+	
+	return self
+end function
+
+Collection.value = function()
+	return self.arr
+end function
+
+module.exports = Collection

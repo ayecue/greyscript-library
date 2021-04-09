@@ -1,0 +1,19 @@
+#import String from string;
+
+Error = {}
+
+Error.String = String
+
+Error.constructor = function(message, values)
+	self.message = message
+	if (values != null) then
+		self.message = (new self.String).constructor(message).parse(values).toString()
+	end if
+	return self
+end function
+
+Error.throw = function()
+	exit("<color=#ff0000>" + self.message + "</color>")
+end function
+
+module.exports = Error

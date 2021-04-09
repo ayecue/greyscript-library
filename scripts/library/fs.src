@@ -2,13 +2,15 @@
 
 FS = {}
 
+FS.Path = Path
+
 FS.constructor = function(computer)
 	self.computer = computer
 	return self
 end function
 
 FS.createFile = function(pathString, name)
-	path = new Path
+	path = new self.Path
 	self.computer.touch(pathString, name)
 	return self.openFile(path.join(pathString, name))
 end function

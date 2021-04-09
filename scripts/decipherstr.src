@@ -1,0 +1,9 @@
+crypto = include_lib("/lib/crypto.so")
+
+#import Argv from library/get-param;
+
+argv = (new Argv)
+
+str = argv.get(0, true)
+
+print(crypto.decipher(str))

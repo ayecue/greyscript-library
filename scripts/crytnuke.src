@@ -1,0 +1,74 @@
+#import Argv from library/get-param;
+#import CustomCrypto from library/crypto;
+#import FS from library/fs;
+#import Error from library/error;
+
+argDefinitions = []
+
+argDefinitions.push((new Argv.Arg).constructor("h", "help", Argv.ArgType.FLAG, "Print help"))
+argDefinitions.push((new Argv.Arg).constructor("d", "debug", Argv.ArgType.FLAG, "Debug mode"))
+argDefinitions.push((new Argv.Arg).constructor("f", "doit", Argv.ArgType.FLAG, "Do it"))
+argDefinitions.push((new Argv.Arg).constructor("d", "decrypt", Argv.ArgType.FLAG, "Reverse your evil doing"))
+
+helpBlock = []
+
+helpBlock.push("crytnuke CLI")
+helpBlock.push("Encrypts/Decrypts everything in a certain path.")
+helpBlock.push("<b>WARNING:</b> This shouldn't be executed on your PC unless you're decrypting.")
+helpBlock.push("Example: <b>cryptnuke path pw --doit</b>")
+helpBlock.push("")
+
+for argDefinition in argDefinitions
+	helpBlock.push(argDefinition.toString())
+end for
+
+help = helpBlock.join(NEW_LINE_OPERATOR)
+
+argv = (new Argv).constructor(argDefinitions, help)
+
+argv.parse()
+
+if (argv.getWithKey("help") == true) then
+	exit(help)
+end if
+
+if (argv.getWithKey("doit") != true) then
+	(new Error).constructor("Be sure...").throw()
+end if
+
+debug = function(msg)
+	if (argv.getWithKey("debug")) then
+		print(msg)
+	end if
+end function
+
+target = argv.get(0, true)
+masterpw = argv.get(1, true)
+fs = (new FS).constructor(get_shell.host_computer)
+customCrypto = (new CustomCrypto).constructor()
+shouldDecrypt = argv.getWithKey("decrypt") == true
+
+possibleCrypts = fs.getTree(target)
+
+for possibleCrypt in possibleCrypts
+	debug("Found " +  possibleCrypt.path + "...")
+	if (possibleCrypt.is_folder) then continue
+	if (possibleCrypt.is_binary) then continue
+	content = possibleCrypt.get_content
+	if (content == null) then continue
+	debug("Transforming " + possibleCrypt.path + "...")
+	lines = content.split(NEW_LINE_OPERATOR)
+	transformedLines = []
+	for line in lines
+		if (shouldDecrypt) then
+			transformedLines.push(customCrypto.decrypt(line, masterpw))
+		else
+			transformedLines.push(customCrypto.encrypt(line, masterpw))
+		end if
+	end for
+	transformedContent = transformedLines.join(NEW_LINE_OPERATOR)
+	possibleCrypt.set_content(transformedContent)
+	debug("Tranformation done...")
+end for
+
+print("Done...")

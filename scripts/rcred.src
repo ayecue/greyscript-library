@@ -1,0 +1,43 @@
+#import Argv from library/get-param;
+#import FS from library/fs;
+
+argDefinitions = []
+
+argDefinitions.push((new Argv.Arg).constructor("h", "help", Argv.ArgType.FLAG, "Print help"))
+
+helpBlock = []
+
+helpBlock.push("rcred CLI")
+helpBlock.push("Example: <b>rcred</b>")
+helpBlock.push("")
+
+for argDefinition in argDefinitions
+	helpBlock.push(argDefinition.toString())
+end for
+
+help = helpBlock.join(NEW_LINE_OPERATOR)
+
+argv = (new Argv).constructor(argDefinitions, help)
+
+argv.parse()
+
+if (argv.getWithKey("help") == true) then
+	exit(help)
+end if
+
+fs = (new FS).constructor(get_shell.host_computer)
+
+while true
+	files = []
+	if (fs.doesFileExist(home_dir + "/Config/Bank.txt")) then files.push(fs.openFile(home_dir + "/Config/Bank.txt"))
+	if (fs.doesFileExist(home_dir + "/Config/Mail.txt")) then files.push(fs.openFile(home_dir + "/Config/Mail.txt"))
+	if (files.len) then
+		print("Credentials found...")
+		for file in files
+			filePath = file.path
+			file.delete
+			print(filePath + " deleted...")
+		end for
+	end if
+	wait(10)
+end while

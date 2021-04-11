@@ -1,0 +1,53 @@
+#import Argv from library/get-param;
+#import FS from library/fs;
+#import Error from library/error;
+#import AppHelper from library/app-helper;
+
+argDefinitions = []
+
+argDefinitions.push((new Argv.Arg).constructor("h", "help", Argv.ArgType.FLAG, "Print help"))
+argDefinitions.push((new Argv.Arg).constructor("e", "exclude", Argv.ArgType.VALUE, "Exclude"))
+argDefinitions.push((new Argv.Arg).constructor("r", "reinstall", Argv.ArgType.FLAG, "Reinstall"))
+
+helpBlock = []
+
+helpBlock.push("Builder CLI")
+helpBlock.push("Example: <b>builder target</b>")
+helpBlock.push("")
+
+for argDefinition in argDefinitions
+	helpBlock.push(argDefinition.toString())
+end for
+
+help = helpBlock.join(NEW_LINE_OPERATOR)
+
+argv = (new Argv).constructor(argDefinitions, help)
+
+argv.parse()
+
+if (argv.getWithKey("help") == true) then
+	exit(help)
+end if
+
+target = argv.get(0, true)
+exclude = argv.getWithKey("exclude")
+if (exclude == null) then exclude = "builder.src"
+reinstall = argv.getWithKey("reinstall")
+fs = (new FS).constructor(get_shell.host_computer)
+appHelper = (new AppHelper).constructor(fs)
+
+dir = fs.openFile(target)
+if not dir.is_folder then (new Error).constructor("Target is not folder...").throw()
+files = dir.get_files
+
+for file in files
+	name = file.name
+	name = name.replace(".src", "")
+	if (name == "builder") then continue
+	if (not reinstall and appHelper.load(name) != null) then
+		print("Skipping " + name + "...")
+		continue
+	end if
+	print("Building " + name + "...")
+	get_shell.launch(appHelper.load("compile"), name)
+end for

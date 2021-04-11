@@ -1,0 +1,53 @@
+#import Argv from library/get-param;
+#import CustomCrypto from library/crypto;
+#import FS from library/fs;
+#import Error from library/error;
+
+argDefinitions = []
+
+argDefinitions.push((new Argv.Arg).constructor("h", "help", Argv.ArgType.FLAG, "Print help"))
+argDefinitions.push((new Argv.Arg).constructor("d", "decrypt", Argv.ArgType.FLAG, "Decrypt file"))
+
+helpBlock = []
+
+helpBlock.push("cfile CLI")
+helpBlock.push("Encrypts/Decrypts file.")
+helpBlock.push("Example: <b>cfile path pw</b>")
+helpBlock.push("")
+
+for argDefinition in argDefinitions
+	helpBlock.push(argDefinition.toString())
+end for
+
+help = helpBlock.join(NEW_LINE_OPERATOR)
+
+argv = (new Argv).constructor(argDefinitions, help)
+
+argv.parse()
+
+if (argv.getWithKey("help") == true) then
+	exit(help)
+end if
+
+target = argv.get(0, true)
+masterpw = argv.get(1, true)
+shouldDecrypt = argv.getWithKey("decrypt")
+fs = (new FS).constructor(get_shell.host_computer)
+customCrypto = (new CustomCrypto).constructor()
+
+file = fs.openFile(target)
+if (file == null) then (new Error).constructor("Cannot open file $0...", [target]).throw()
+if (file.is_folder) then (new Error).constructor("File is folder...").throw()
+if (file.is_binary) then (new Error).constructor("File is binary...").throw()
+lines = file.get_content.split(NEW_LINE_OPERATOR)
+transformedLines = []
+for line in lines
+	if (shouldDecrypt) then
+		transformedLines.push(customCrypto.decrypt(line, masterpw))
+	else
+		transformedLines.push(customCrypto.encrypt(line, masterpw))
+	end if
+end for
+transformedContent = transformedLines.join(NEW_LINE_OPERATOR)
+file.set_content(transformedContent)
+exit("Done!")

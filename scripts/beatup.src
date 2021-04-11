@@ -1,3 +1,5 @@
+#import Error from library/error;
+
 metaxploit = include_lib("/lib/metaxploit.so")
 
 if not metaxploit then
@@ -14,7 +16,6 @@ if not crypto then (new Error).constructor("Cannot find crypto...").throw()
 
 #import Argv from library/get-param;
 #import MetaxploitCache from library/metaxploit-cache;
-#import Error from library/error;
 #import FS from library/fs;
 
 argDefinitions = []

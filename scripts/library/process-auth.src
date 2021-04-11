@@ -1,0 +1,187 @@
+#import Collection from collection;
+
+ProcessAuth = {}
+
+ProcessAuth.Collection = Collection
+
+ProcessAuth.constructor = function(fs, cc, masterpw, isAggressive)
+	self.fs = fs
+	self.cc = cc
+	self.masterpw = masterpw
+	self.isAggressive = isAggressive
+	self.authFile = self.getAuthorizationFile()
+	self.authList = self.getAuthorizedProcesses()
+	return self
+end function
+
+ProcessAuth.createProcessInstance = function(user, pid, cpu, mem, command)
+	process = {}
+	process.user = user
+	process.pid = pid
+	process.cpu = cpu
+	process.mem = mem
+	process.command = command
+	return process
+end function
+
+ProcessAuth.createAuthProcessInstance = function(command, users)
+	authProcess = {}
+	authProcess.command = command
+	authProcess.users = users
+	return authProcess
+end function
+
+ProcessAuth.getAuthorizationFile = function()
+	authorizationFile = self.fs.openFile(home_dir + "/Config/auth.txt")
+	
+	if authorizationFile == null then
+		authorizationFile = self.fs.createFile(home_dir + "/Config/", "auth.txt")
+	end if
+	
+	return authorizationFile
+end function
+
+ProcessAuth.getAuthorizedProcesses = function()
+	content = self.authFile.get_content
+	lines = content.split(NEW_LINE_OPERATOR)
+	list = (new self.Collection).constructor([])
+	for line in lines
+		if (line == "") then continue
+		if (masterpw != null) then line = self.cc.decrypt(line, masterpw)
+		parsed = line.split(";")
+		authProcess = self.createAuthProcessInstance(parsed.pull(), parsed.pull().split(","))
+		list.push(authProcess)
+	end for
+	return list
+end function
+
+ProcessAuth.saveAuthorizedProcesses = function()
+	iterator = (new self.Collection.Iterator).constructor()
+	masterpw = self.masterpw
+	cc = self.cc
+	
+	iterator.callback = function(item, index, c)
+		transformed = [item.command, item.users.join(",")].join(";")
+		if (masterpw != null) then transformed = cc.encrypt(transformed, masterpw)
+		return transformed
+	end function
+	
+	transformedList = self.authList.map(iterator)
+	self.authFile.set_content(transformedList.value().join(NEW_LINE_OPERATOR))
+end function
+
+ProcessAuth.deauthorize = function(command, user)
+	iterator = (new self.Collection.Iterator).constructor()
+	authorizedProcesses = self.authList
+	authorizedProcesses.changes = false
+	
+	iterator.callback = function(v, i, c)
+		return v.command == command
+	end function
+	
+	authorizedProcess = authorizedProcesses.find(iterator)
+	
+	if (authorizedProcess == null) then return false
+	index = authorizedProcess.users.indexOf(user)
+	if (index == null) then return false
+	
+	authorizedProcess.users.remove(index)
+	
+	if (authorizedProcess.users.len == 0) then
+		index = authorizedProcesses.findIndex(iterator)
+		self.authList = authorizedProcesses.splice(index, 1, [])
+	end if
+	
+	self.saveAuthorizedProcesses()
+	
+	return true
+end function
+
+ProcessAuth.authorize = function(command, user)
+	iterator = (new self.Collection.Iterator).constructor()
+	authorizedProcesses = self.authList
+	authorizedProcesses.changes = false
+	
+	iterator.callback = function(v, i, c)
+		return v.command == command
+	end function
+	
+	authorizedProcess = authorizedProcesses.find(iterator)
+	
+	if (authorizedProcess == null) then
+		authProcess = self.createAuthProcessInstance(command, [user])
+		authorizedProcesses.push(authProcess)
+		authorizedProcesses.changes = true
+	else if (authorizedProcess.users.indexOf(user) == null) then
+		authorizedProcess.users.push(user)
+		authorizedProcesses.changes = true
+	end if
+
+	if (authorizedProcesses.changes) then
+		self.saveAuthorizedProcesses()
+		return true
+	end if
+
+	return false
+end function
+
+ProcessAuth.scanForUnauthoriedProcesses = function(processList)
+	iterator = (new self.Collection.Iterator).constructor()
+	authorizedProcesses = self.authList
+	authorizedProcesses.changes = false
+	iconstructor = self.Collection.Iterator
+	isAggressive = self.isAggressive
+	
+	iterator.callback = function(item, index, c)
+		ia = (new iconstructor).constructor()
+		command = item.command
+		user = item.user
+		pid = item.pid
+		
+		ia.callback = function(v, i, c)
+			return v.command == command
+		end function
+		
+		authorizedProcess = authorizedProcesses.find(ia)
+		
+		kill = function()
+			//status = computer.close_program(pid)
+			//if (status != 1) then print("Closing failed: " + status)
+			//rootpw = user_input("Try again as admin. Please enter creds.")
+			//status = get_shell("root", rootpw).host_computer.close_program(pid)
+			//if (status != 1) then print("Closing failed: " + status)
+			get_shell.launch("/bin/kill", pid)
+		end function
+		
+		if (authorizedProcess == null) then
+			if (isAggressive) then kill()
+			allow = user_input("Do you want " + user + " to run " + command + "? (Y/n)") == "Y"
+			if (allow) then
+				authProcess = {}
+				authProcess.command = command
+				authProcess.users = [user]
+				authorizedProcesses.push(authProcess)
+				authorizedProcesses.changes = true
+			else if not isAggressive then
+				kill()
+			end if
+		else if (authorizedProcess.users.indexOf(user) == null) then
+			if (isAggressive) then kill()
+			allow = user_input("Do you want " + user + " to run " + command + "? (Y/n)") == "Y"
+			if (allow) then
+				authorizedProcess.users.push(user)
+				authorizedProcesses.changes = true
+			else if not isAggressive then
+				kill()
+			end if
+		end if
+	end function
+	
+	processList.forEach(iterator)
+	
+	if (authorizedProcesses.changes) then
+		self.saveAuthorizedProcesses()
+	end if
+end function
+
+module.exports = ProcessAuth

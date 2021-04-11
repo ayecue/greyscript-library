@@ -1,0 +1,47 @@
+#import Argv from library/get-param;
+#import CustomCrypto from library/crypto;
+#import FS from library/fs;
+#import ProcessAuth from library/process-auth;
+
+argDefinitions = []
+
+argDefinitions.push((new Argv.Arg).constructor("h", "help", Argv.ArgType.FLAG, "Print help"))
+argDefinitions.push((new Argv.Arg).constructor("pw", "masterpw", Argv.ArgType.VALUE, "Master password"))
+argDefinitions.push((new Argv.Arg).constructor("d", "deauth", Argv.ArgType.FLAG, "Should rather deauthorize"))
+
+helpBlock = []
+
+helpBlock.push("Auth Process CLI")
+helpBlock.push("Example: <b>authprocess process user</b>")
+helpBlock.push("")
+
+for argDefinition in argDefinitions
+	helpBlock.push(argDefinition.toString())
+end for
+
+help = helpBlock.join(NEW_LINE_OPERATOR)
+
+argv = (new Argv).constructor(argDefinitions, help)
+
+argv.parse()
+
+if (argv.getWithKey("help") == true) then
+	exit(help)
+end if
+
+command = argv.get(0, true)
+user = argv.get(1, true)
+masterpw = argv.getWithKey("masterpw")
+deauth = argv.getWithKey("deauth")
+computer = get_shell.host_computer
+fs = (new FS).constructor(computer)
+customCrypto = (new CustomCrypto).constructor()
+processAuth = (new ProcessAuth).constructor(fs, customCrypto, masterpw, false)
+
+if (deauth) then
+	processAuth.deauthorize(command, user)
+	exit("Deauthorized " + user + " to use " + command + "...")
+end if
+
+processAuth.authorize(command, user)
+exit("Authorized " + user + " to use " + command + "...")

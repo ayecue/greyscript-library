@@ -1,0 +1,61 @@
+#import Error from library/error;
+
+metaxploit = include_lib("/lib/metaxploit.so")
+
+if not metaxploit then
+	metaxploit = include_lib(current_path + "/metaxploit.so")
+end if
+if not metaxploit then (new Error).constructor("Cannot find metaxploit...").throw()
+
+#import Argv from library/get-param;
+
+argDefinitions = []
+
+argDefinitions.push((new Argv.Arg).constructor("h", "help", Argv.ArgType.FLAG, "Print help"))
+argDefinitions.push((new Argv.Arg).constructor("n", "net", Argv.ArgType.FLAG, "Net mode"))
+
+helpBlock = []
+
+helpBlock.push("LibInfo CLI")
+helpBlock.push("Example: <b>exploit target</b>")
+helpBlock.push("")
+
+for argDefinition in argDefinitions
+	helpBlock.push(argDefinition.toString())
+end for
+
+help = helpBlock.join(NEW_LINE_OPERATOR)
+
+argv = (new Argv).constructor(argDefinitions, help)
+
+argv.parse()
+
+if (argv.getWithKey("help") == true) then
+	exit(help)
+end if
+
+target = argv.get(0, true)
+isNetMode = argv.getWithKey("net")
+
+if (isNetMode) then
+	print("Net mode")
+	targetParts = target.split(":")
+	ip = targetParts.pull()
+	port = targetParts.pull()
+	netsession = null
+	if (port == null) then
+		print("Connecting to router " + ip + "...")
+		netsession = metaxploit.net_use(ip)
+	else
+		print("Connecting to " + ip + ":" + port + "...")
+		netsession = metaxploit.net_use(ip, port.to_int)
+	end if
+	if not netsession then
+		(new Error).constructor("NetSession to $0 failed...", [target]).throw()
+	end if
+	metalib = netsession.dump_lib
+else
+	metalib = metaxploit.load(target)
+end if
+
+print(metalib.lib_name + " using v" + metalib.version)

@@ -4,7 +4,8 @@
 argv = new Argv
 
 //add args
-filter = argv.get(0, true)
+target = argv.get(0, true)
+filter = argv.get(1)
 
 //default variables
 myShell = get_shell
@@ -16,14 +17,15 @@ fs = new FS
 fs.constructor(myComputer)
 
 //add code
-items = fs.getTree("/", filter)
+items = fs.getTree(target, filter)
 
 if items.len == 0 then
 	exit("Nothing found.")
 end if
 
+print(["Permissions", "Owner", "Path"].join(" "))
 for item in items
-	print("Found " + item.path + "...")
+	print([item.permissions, item.owner, item.path].join(" "))
 end for
 
 exit("Done!")

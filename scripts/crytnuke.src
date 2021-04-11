@@ -2,6 +2,7 @@
 #import CustomCrypto from library/crypto;
 #import FS from library/fs;
 #import Error from library/error;
+#import AppHelper from library/app-helper;
 
 argDefinitions = []
 
@@ -45,6 +46,7 @@ end function
 target = argv.get(0, true)
 masterpw = argv.get(1, true)
 fs = (new FS).constructor(get_shell.host_computer)
+appHelper = (new AppHelper).constructor(fs)
 customCrypto = (new CustomCrypto).constructor()
 shouldDecrypt = argv.getWithKey("decrypt") == true
 
@@ -52,23 +54,9 @@ possibleCrypts = fs.getTree(target)
 
 for possibleCrypt in possibleCrypts
 	debug("Found " +  possibleCrypt.path + "...")
-	if (possibleCrypt.is_folder) then continue
-	if (possibleCrypt.is_binary) then continue
-	content = possibleCrypt.get_content
-	if (content == null) then continue
-	debug("Transforming " + possibleCrypt.path + "...")
-	lines = content.split(NEW_LINE_OPERATOR)
-	transformedLines = []
-	for line in lines
-		if (shouldDecrypt) then
-			transformedLines.push(customCrypto.decrypt(line, masterpw))
-		else
-			transformedLines.push(customCrypto.encrypt(line, masterpw))
-		end if
-	end for
-	transformedContent = transformedLines.join(NEW_LINE_OPERATOR)
-	possibleCrypt.set_content(transformedContent)
-	debug("Tranformation done...")
+	args = [possibleCrypt.path, masterpw]
+	if shouldDecrypt then args.push("--decrypt")
+	get_shell.launch(appHelper.load("cfile"), args.join(" "))
 end for
 
 print("Done...")

@@ -1,0 +1,162 @@
+#import Argv from library/get-param;
+#import CustomCrypto from library/crypto;
+#import FS from library/fs;
+#import Collection from library/collection;
+#import ProcessAuth from library/process-auth;
+
+argDefinitions = []
+
+argDefinitions.push((new Argv.Arg).constructor("h", "help", Argv.ArgType.FLAG, "Print help"))
+argDefinitions.push((new Argv.Arg).constructor("pw", "masterpw", Argv.ArgType.VALUE, "Master password"))
+argDefinitions.push((new Argv.Arg).constructor("r", "root-path", Argv.ArgType.VALUE, "Root folder"))
+argDefinitions.push((new Argv.Arg).constructor("a", "aggressive", Argv.ArgType.FLAG, "Aggressive process killing"))
+
+helpBlock = []
+
+helpBlock.push("Monitor CLI")
+helpBlock.push("Example: <b>monitor m</b>")
+helpBlock.push("")
+
+for argDefinition in argDefinitions
+	helpBlock.push(argDefinition.toString())
+end for
+
+help = helpBlock.join(NEW_LINE_OPERATOR)
+
+argv = (new Argv).constructor(argDefinitions, help)
+
+argv.parse()
+
+if (argv.getWithKey("help") == true) then
+	exit(help)
+end if
+
+masterpw = argv.getWithKey("masterpw")
+rootPath = argv.getWithKey("root-path")
+if (rootPath == null) then rootPath = "/home"
+isAggressive = argv.getWithKey("aggressive")
+computer = get_shell.host_computer
+fs = (new FS).constructor(computer)
+customCrypto = (new CustomCrypto).constructor()
+processAuth = (new ProcessAuth).constructor(fs, customCrypto, masterpw, isAggressive)
+
+getProcesses = function()
+	procs = computer.show_procs
+	lines = procs.split(NEW_LINE_OPERATOR)[1:]
+	list = (new Collection).constructor([])
+	for line in lines
+		parsed = line.split(" ")
+		process = processAuth.createProcessInstance(parsed.pull(), parsed.pull(), parsed.pull(), parsed.pull(), parsed.pull())
+		list.push(process)
+	end for
+	return list
+end function
+
+processDiff = function(a, b)
+	iterator = (new Collection.Iterator).constructor()
+	
+	iterator.callback = function(item, index, c)
+		ia = (new Collection.Iterator).constructor()
+		pid = item.pid
+		
+		ia.callback = function(v, i, c)
+			return v.pid == pid
+		end function
+		
+		return b.findIndex(ia) == null
+	end function
+	
+	diff = a.filter(iterator)
+	
+	if (diff.value().len == 0) then return null
+	return diff
+end function
+
+detectSpawns = function(processes, prev)
+	newProcesses = processDiff(processes, prev)
+	if (newProcesses == null) then return
+	print("<color=#ff0000><b>New processes detected<b></color>")
+	print(["USER", "PID", "COMMAND"].join(" "))
+	iterator = (new Collection.Iterator).constructor()
+	iterator.callback = function(item, index, c)
+		print([item.user, item.pid, item.command].join(" "))
+	end function
+	newProcesses.forEach(iterator)
+end function
+
+detectDespawns = function(processes, prev)
+	removedProcesses = processDiff(prev, processes)
+	if (removedProcesses == null) then return
+	print("<color=#ff0000><b>Removed processes detected<b></color>")
+	print(["USER", "PID", "COMMAND"].join(" "))
+	iterator = (new Collection.Iterator).constructor()
+	iterator.callback = function(item, index, c)
+		print([item.user, item.pid, item.command].join(" "))
+	end function
+	removedProcesses.forEach(iterator)
+end function
+
+treeDiff = function(a, b)
+	iterator = (new Collection.Iterator).constructor()
+	
+	iterator.callback = function(item, index, c)
+		ia = (new Collection.Iterator).constructor()
+		path = item.path
+		owner = item.owner
+		size = item.size
+		permissions = item.permissions
+		
+		ia.callback = function(v, i, c)
+			return v.path == path and v.owner == owner and v.size == size and v.permissions == permissions
+		end function
+		
+		return b.findIndex(ia) == null
+	end function
+	
+	return a.filter(iterator)
+end function
+
+detectChanges = function(tree, prev)
+	tree = (new Collection).constructor(tree)
+	prev = (new Collection).constructor(prev)
+	additions = treeDiff(tree, prev)
+	removals = treeDiff(prev, tree)
+	
+	if (additions.value().len > 0) then
+		print("<color=#ff0000><b>File got created<b></color>")
+		print(["Permissions", "Owner", "Path"].join(" "))
+		iterator = (new Collection.Iterator).constructor()
+		iterator.callback = function(item, index, c)
+			print([item.permissions, item.owner, item.path].join(" "))
+		end function
+		additions.forEach(iterator)
+	end if
+
+	if (removals.value().len > 0) then
+		print("<color=#ff0000><b>File got removed<b></color>")
+		print(["Permissions", "Owner", "Path"].join(" "))
+		iterator = (new Collection.Iterator).constructor()
+		iterator.callback = function(item, index, c)
+			print([item.permissions, item.owner, item.path].join(" "))
+		end function
+		removals.forEach(iterator)
+	end if
+end function
+
+processList = getProcesses()
+prevPL = processList
+tree = fs.getTree(rootPath)
+prevTree = tree
+
+while true
+	detectChanges(tree, prevTree)
+	detectSpawns(processList, prevPL)
+	detectDespawns(processList, prevPL)
+	processAuth.scanForUnauthoriedProcesses(processList)
+	wait(10)
+	prevPL = processList
+	processList = getProcesses()
+	prevTree = tree
+	tree = fs.getTree(rootPath)
+end while
+

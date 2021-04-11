@@ -4,11 +4,17 @@
 #import Collection from library/collection;
 #import ProcessAuth from library/process-auth;
 
+metaxploit = include_lib("/lib/metaxploit.so")
+if metaxploit == null then
+	print("Metaxploit features disabled...")
+end if
+
 argDefinitions = []
 
 argDefinitions.push((new Argv.Arg).constructor("h", "help", Argv.ArgType.FLAG, "Print help"))
 argDefinitions.push((new Argv.Arg).constructor("pw", "masterpw", Argv.ArgType.VALUE, "Master password"))
 argDefinitions.push((new Argv.Arg).constructor("r", "root-path", Argv.ArgType.VALUE, "Root folder"))
+argDefinitions.push((new Argv.Arg).constructor("l", "lib-path", Argv.ArgType.VALUE, "Lib folder"))
 argDefinitions.push((new Argv.Arg).constructor("a", "aggressive", Argv.ArgType.FLAG, "Aggressive process killing"))
 
 helpBlock = []
@@ -34,6 +40,8 @@ end if
 masterpw = argv.getWithKey("masterpw")
 rootPath = argv.getWithKey("root-path")
 if (rootPath == null) then rootPath = "/home"
+libPath = argv.getWithKey("lib-path")
+if (libPath == null) then libPath = "/lib/"
 isAggressive = argv.getWithKey("aggressive")
 computer = get_shell.host_computer
 fs = (new FS).constructor(computer)
@@ -131,7 +139,7 @@ detectChanges = function(tree, prev)
 		end function
 		additions.forEach(iterator)
 	end if
-
+	
 	if (removals.value().len > 0) then
 		print("<color=#ff0000><b>File got removed<b></color>")
 		print(["Permissions", "Owner", "Path"].join(" "))
@@ -143,20 +151,85 @@ detectChanges = function(tree, prev)
 	end if
 end function
 
+getLibVersions = function()
+	if (metaxploit == null) then return []
+	libraries = fs.getTree(libPath, ".so")
+	libMap = {}
+	for library in libraries
+		metalib = metaxploit.load(library.path)
+		if (metalib == null) then
+			print("<color=#ff0000><b>Warning invalid library<b></color>")
+			print(library.path)
+			continue
+		end if
+		if (not libMap.hasIndex(metalib.lib_name)) then
+			libMap[metalib.lib_name] = []
+		end if
+		libMap[metalib.lib_name].push(metalib.version)
+	end for
+	return libMap
+end function
+
+libDiff = function(a, b)
+	aKeys = a.indexes
+	bKeys = b.indexes
+	diff = []
+	for key in aKeys
+		if (bKeys.indexOf(key) == null) then diff.push(key)
+	end for
+	return diff
+end function
+
+libVersionDiff = function(a, b)
+	diff = []
+	for item in a
+		if (b.hasIndex(item.key) and item.value.join(",") != b[item.key].join(",")) then
+			vchange = [b[item.key].join(","), item.value.join(",")].join(" > ")
+			diff.push([item.key, vchange].join(" - "))
+		end if
+	end for
+	return diff
+end function
+
+detectLibChanges = function(libMap, prev)
+	additions = libDiff(libMap, prev)
+	removals = libDiff(prev, libMap)
+	versions = libVersionDiff(libMap, prev)
+	
+	if (additions.len > 0) then
+		print("<color=#ff0000><b>Libs got added<b></color>")
+		print(additions.join(NEW_LINE_OPERATOR))
+	end if
+
+	if (removals.len > 0) then
+		print("<color=#ff0000><b>Libs got removed<b></color>")
+		print(removals.join(NEW_LINE_OPERATOR))
+	end if
+
+	if (versions.len > 0) then
+		print("<color=#ff0000><b>Libs version changed<b></color>")
+		print(versions.join(NEW_LINE_OPERATOR))
+	end if
+end function
+
 processList = getProcesses()
 prevPL = processList
 tree = fs.getTree(rootPath)
 prevTree = tree
+libs = getLibVersions()
+prevLibs = libs
 
 while true
 	detectChanges(tree, prevTree)
 	detectSpawns(processList, prevPL)
 	detectDespawns(processList, prevPL)
+	detectLibChanges(libs, prevLibs)
 	processAuth.scanForUnauthoriedProcesses(processList)
 	wait(10)
 	prevPL = processList
 	processList = getProcesses()
 	prevTree = tree
 	tree = fs.getTree(rootPath)
+	prevLibs = libs
+	libs = getLibVersions()
 end while
-

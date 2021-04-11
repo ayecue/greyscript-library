@@ -1,0 +1,179 @@
+#import Argv from library/get-param;
+#import FS from library/fs;
+
+argDefinitions = []
+
+argDefinitions.push((new Argv.Arg).constructor("h", "help", Argv.ArgType.FLAG, "Print help"))
+argDefinitions.push((new Argv.Arg).constructor("b", "bin-path", Argv.ArgType.VALUE, "Bin path"))
+argDefinitions.push((new Argv.Arg).constructor("o", "origin", Argv.ArgType.VALUE, "Origin"))
+argDefinitions.push((new Argv.Arg).constructor("l", "log-file", Argv.ArgType.VALUE, "Path to empty log-file"))
+
+helpBlock = []
+
+helpBlock.push("rlaunch CLI")
+helpBlock.push("Example: <b>rlaunch creds ip</b>")
+helpBlock.push("")
+
+for argDefinition in argDefinitions
+	helpBlock.push(argDefinition.toString())
+end for
+
+help = helpBlock.join(NEW_LINE_OPERATOR)
+
+argv = (new Argv).constructor(argDefinitions, help)
+
+argv.parse()
+
+if (argv.getWithKey("help") == true) then
+	exit(help)
+end if
+
+creds = argv.get(0, true)
+ip = argv.get(1, true)
+port = argv.get(2)
+if (port == null) then port = 22
+if (typeof(port) == "string") then port = port.to_int
+binFolder = argv.getWithKey("bin-path")
+if (binFolder == null) then binFolder = ""
+origin = argv.getWithKey("origin")
+if (origin == null) then
+	origin = [ip]
+else
+	origin = origin.split(",")
+	origin.push(ip)
+end if
+logFile = argv.getWithKey("log-file")
+if (logFile != null) then
+	fs = (new FS).constructor(get_shell.host_computer)
+	logFile = fs.openFile(logFile)
+end if
+
+parsedCreds = creds.split("@")
+user = parsedCreds.pull()
+pw = parsedCreds.pull()
+
+override = function(rshell)
+	if (logFile != null) then
+		//Seems like this completly clears the system log file
+		//Make sure that you either use an empty log file or some pseudo log file you found somewhere
+		print("Override /var/system.log")
+		if (rshell == null) then rshell = get_shell.connect_service(ip, port, user, pw)
+		if (rshell == null) then exit("Failed to connect to remote shell " + ip + ":" + port)
+		status = get_shell.scp(logFile.path, "/var/", rshell)
+		if (status == 1) then 
+			print("Override successful...")
+		else
+			print("Override failed...")
+		end if
+	end if
+end function
+
+connect = function()
+	rshell = get_shell.connect_service(ip, port, user, pw)
+	if (rshell == null) then exit("Failed to connect to remote shell " + ip + ":" + port)
+	override(rshell)
+	return rshell
+end function
+
+internal = {}
+
+internal.upload = function(args)
+	fs = (new FS).constructor(get_shell.host_computer)
+	rshell = connect()
+	parsedArgs = args.split(" ")
+	pathOrig = parsedArgs.pull()
+	pathDest = parsedArgs.pull()
+	type = parsedArgs.pull()
+	file = fs.openFile(pathOrig)
+	if (file == null) then
+		print("No file found...")
+		return false
+	end if
+	status = get_shell.scp(pathOrig, pathDest, rshell)
+	if (status == 1) then
+		rfs = (new FS).constructor(rshell.host_computer)
+		rDir = rfs.openFile(pathDest)
+		rFile = rfs.openFile(rDir.path + "/" + file.name)
+		if (rFile == null) then
+			print("No remove file found...")
+			return false
+		end if
+		rFile.chmod("o-rwx")
+		print("Successful upload of " + pathOrig)
+		return true
+	end if
+	print("Failed upload of " + pathOrig + ": " + status)
+	return false
+end function
+
+internal.download = function(args)
+	rshell = connect()
+	fs = (new FS).constructor(rshell.host_computer)
+	parsedArgs = args.split(" ")
+	pathOrig = parsedArgs.pull()
+	pathDest = parsedArgs.pull()
+	type = parsedArgs.pull()
+	file = fs.openFile(pathOrig)
+	if (file == null) then
+		print("No file found...")
+		return
+	end if
+	status = rshell.scp(pathOrig, pathDest, get_shell)
+	if (status == 1) then
+		print("Successful download of " + pathOrig)
+		return true
+	end if
+	print("Failed download of " + pathOrig + ": " + status)
+	return false
+end function
+
+internal.terminal = function(command, args)
+	rshell = connect()
+	print("Creating terminal...")
+	rshell.start_terminal
+end function
+
+run = function(command, args)
+	rshell = connect()
+	print("Launching " + command + " on " + ip + ":" + port)
+	status = rshell.launch(binFolder + command, args)
+	if (status == null) then print("Successful execution...")
+	if (status == 0) then print("Failed execution...")
+end function
+
+info = []
+
+info.push("<b>Commands</b>")
+info.push("- 'exit' to quit, useful when youre in another layer of rlaunch")
+info.push("- '@terminal' creates a remote terminal")
+info.push("- '@upload source target-folder' upload file")
+info.push("- '@download source target-folder' download file")
+info.push("Keep in mind you can start a rlaunch in a rlaunch.")
+info.push("Beside of those commands you can launch any application on the remote Machine.")
+info.push("Example: '/bin/ls /home/'")
+
+print(info.join(NEW_LINE_OPERATOR))
+
+while true
+	override()
+	input = user_input("<b>" + origin.join("->") + "-></b>")
+	print(">> " + input)
+	inputList = input.split(" ")
+	command = inputList.pull()
+	args = inputList.join(" ")
+	if command == "exit" then break
+	if command.indexOf("@") == 0 then
+		innerFn = command[1:]
+		if (internal.hasIndex(innerFn)) then
+			internal[innerFn](args)
+			continue
+		end if
+		print("Internal method " + innerFn + " does not exist...")
+		continue
+	end if
+	if (command.indexOf("rlaunch") != null) then args = [args, "--origin", origin.join(",")].join(" ")
+	run(command, args)
+end while
+
+override()
+

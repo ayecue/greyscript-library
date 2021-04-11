@@ -53,16 +53,43 @@ Argv.parse = function()
 		end for
 		return null
 	end function
-
+	isWrapped = function(x)
+		return x[0] == "'"
+	end function
+	getItemsInWrap = function(start)
+		i = start
+		r = []
+		while i < maxIndex
+			x = args[i].trim()
+			if (x[-1] == "'") then
+				r.push(x[:x.len - 1])
+				return r
+			end if
+			r.push(x)
+			i = i + 1
+		end while
+		return r
+	end function
+	
 	while index < maxIndex
 		item = args[index].trim()
 		def = findDef(item)
 		if (def == null) then
+			if (isWrapped(item)) then
+				wrappedItems = getItemsInWrap(index + 1)
+				item = [item[1:], wrappedItems.join(" ")].join(" ")
+				index = index + wrappedItems.len
+			end if
 			unlisted.push(item)
 		else
 			if (def.type == self.ArgType.VALUE) then
 				index = index + 1
 				value = args[index]
+				if (isWrapped(value)) then
+					wrappedItems = getItemsInWrap(index + 1)
+					value = [value[1:], wrappedItems.join(" ")].join(" ")
+					index = index + wrappedItems.len
+				end if
 				listed[def.command] = value
 			else if (def.type == self.ArgType.FLAG) then
 				listed[def.command] = true
@@ -70,10 +97,10 @@ Argv.parse = function()
 		end if
 		index = index + 1
 	end while
-
+	
 	self.listed = listed
 	self.unlisted = unlisted
-
+	
 	return self
 end function
 

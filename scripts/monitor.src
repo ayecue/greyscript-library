@@ -225,7 +225,7 @@ while true
 	detectDespawns(processList, prevPL)
 	detectLibChanges(libs, prevLibs)
 	processAuth.scanForUnauthoriedProcesses(processList)
-	wait(10)
+	wait(0.5)
 	prevPL = processList
 	processList = getProcesses()
 	prevTree = tree
@@ -233,3 +233,4 @@ while true
 	prevLibs = libs
 	libs = getLibVersions()
 end while
+

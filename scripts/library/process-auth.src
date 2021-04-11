@@ -116,12 +116,12 @@ ProcessAuth.authorize = function(command, user)
 		authorizedProcess.users.push(user)
 		authorizedProcesses.changes = true
 	end if
-
+	
 	if (authorizedProcesses.changes) then
 		self.saveAuthorizedProcesses()
 		return true
 	end if
-
+	
 	return false
 end function
 
@@ -154,8 +154,12 @@ ProcessAuth.scanForUnauthoriedProcesses = function(processList)
 		end function
 		
 		if (authorizedProcess == null) then
-			if (isAggressive) then kill()
-			allow = user_input("Do you want " + user + " to run " + command + "? (Y/n)") == "Y"
+			allow = false
+			if (isAggressive) then
+				kill()
+			else
+				allow = user_input("Do you want " + user + " to run " + command + "? (Y/n)") == "Y"
+			end if
 			if (allow) then
 				authProcess = {}
 				authProcess.command = command
@@ -166,8 +170,12 @@ ProcessAuth.scanForUnauthoriedProcesses = function(processList)
 				kill()
 			end if
 		else if (authorizedProcess.users.indexOf(user) == null) then
-			if (isAggressive) then kill()
-			allow = user_input("Do you want " + user + " to run " + command + "? (Y/n)") == "Y"
+			allow = false
+			if (isAggressive) then
+				kill()
+			else
+				allow = user_input("Do you want " + user + " to run " + command + "? (Y/n)") == "Y"
+			end if
 			if (allow) then
 				authorizedProcess.users.push(user)
 				authorizedProcesses.changes = true

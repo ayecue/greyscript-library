@@ -1,0 +1,89 @@
+#import Error from library/error;
+
+metaxploit = include_lib("/lib/metaxploit.so")
+
+if not metaxploit then
+	metaxploit = include_lib(current_path + "/metaxploit.so")
+end if
+if not metaxploit then (new Error).constructor("Cannot find metaxploit...").throw()
+
+#import Argv from library/get-param;
+
+argDefinitions = []
+
+argDefinitions.push((new Argv.Arg).constructor("h", "help", Argv.ArgType.FLAG, "Print help"))
+argDefinitions.push((new Argv.Arg).constructor("d", "debug", Argv.ArgType.FLAG, "Debug mode"))
+
+helpBlock = []
+
+helpBlock.push("LibScraper CLI")
+helpBlock.push("Example: <b>libscraper lib version</b>")
+helpBlock.push("")
+
+for argDefinition in argDefinitions
+	helpBlock.push(argDefinition.toString())
+end for
+
+help = helpBlock.join(NEW_LINE_OPERATOR)
+
+argv = (new Argv).constructor(argDefinitions, help)
+
+argv.parse()
+
+if (argv.getWithKey("help") == true) then
+	exit(help)
+end if
+
+libname = argv.get(0, true)
+version = argv.get(1, true)
+
+debug = function(msg)
+	if (argv.getWithKey("debug")) then
+		print(msg)
+	end if
+end function
+
+random = function(min, max)
+	return floor((rnd * max) + min)
+end function
+
+generateIp = function()
+	ip = [random(1, 255), random(1, 255), random(1, 255), random(1, 255)].join(".")
+	
+	debug("Generate " + ip + "...")
+	if (not is_valid_ip(ip) or is_lan_ip(ip) or get_router(ip) == null) then
+		return null
+	end if
+	
+	return ip
+end function
+
+lookupLib = function(ip, port)
+	netsession = null
+	if (port == null) then
+		netsession = metaxploit.net_use(ip)
+	else
+		if (port.is_closed) then return
+		netsession = metaxploit.net_use(ip, port.port_number)
+		ip = [ip, port.port_number].join(":")
+	end if
+	if (netsession == null) then return
+	metalib = netsession.dump_lib
+	if (metalib.lib_name.indexOf(libname) != null and metalib.version.indexOf(version) != null) then
+		print([ip, metalib.lib_name, metalib.version].join(" "))
+	end if
+end function
+
+print(["IP", "LibName", "Version"].join(" "))
+while true
+	ip = generateIp()
+	if (ip == null) then
+		continue
+	end if
+	router = get_router(ip)
+	lookupLib(ip)
+	for port in router.used_ports
+		lookupLib(ip, port)
+ 	end for
+	wait(0.5)
+end while

@@ -5,6 +5,7 @@ argDefinitions = []
 
 argDefinitions.push((new Argv.Arg).constructor("h", "help", Argv.ArgType.FLAG, "Print help"))
 argDefinitions.push((new Argv.Arg).constructor("b", "bin-path", Argv.ArgType.VALUE, "Bin path"))
+argDefinitions.push((new Argv.Arg).constructor("s", "startup", Argv.ArgType.VALUE, "Start up executions"))
 argDefinitions.push((new Argv.Arg).constructor("o", "origin", Argv.ArgType.VALUE, "Origin"))
 argDefinitions.push((new Argv.Arg).constructor("l", "log-file", Argv.ArgType.VALUE, "Path to empty log-file"))
 
@@ -31,6 +32,7 @@ end if
 creds = argv.get(0, true)
 ip = argv.get(1, true)
 port = argv.get(2)
+callstack = []
 if (port == null) then port = 22
 if (typeof(port) == "string") then port = port.to_int
 binFolder = argv.getWithKey("bin-path")
@@ -47,6 +49,8 @@ if (logFile != null) then
 	fs = (new FS).constructor(get_shell.host_computer)
 	logFile = fs.openFile(logFile)
 end if
+startup = argv.getWithKey("startup")
+if (startup != null) then callstack = callstack + startup.split(",")
 
 parsedCreds = creds.split("@")
 user = parsedCreds.pull()
@@ -156,10 +160,15 @@ print(info.join(NEW_LINE_OPERATOR))
 
 while true
 	override()
-	input = user_input("<b>" + origin.join("->") + "-></b>")
-	print(">> " + input)
+	if (callstack.len == 0) then
+		input = user_input("<b>" + origin.join("->") + "-></b>")
+	else
+		input = callstack.pull()
+	end if
+	print(">> " + input) 
 	inputList = input.split(" ")
 	command = inputList.pull()
+	if (command == "") then continue
 	args = inputList.join(" ")
 	if command == "exit" then break
 	if command.indexOf("@") == 0 then
@@ -176,4 +185,5 @@ while true
 end while
 
 override()
+
 

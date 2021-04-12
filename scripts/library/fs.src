@@ -2,7 +2,7 @@
 
 FS = {}
 
-FS.Path = Path
+FS.Path = @Path
 
 FS.constructor = function(computer)
 	self.computer = computer

@@ -16,7 +16,7 @@ end function
 
 NetworkDeviceManager = {}
 
-NetworkDeviceManager.NetworkDevice = NetworkDevice
+NetworkDeviceManager.NetworkDevice = @NetworkDevice
 
 NetworkDeviceManager.constructor = function(computer)
 	self.computer = computer

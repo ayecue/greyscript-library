@@ -20,7 +20,7 @@ end function
 
 NetDeviceManager = {}
 
-NetDeviceManager.NetDevice = NetDevice
+NetDeviceManager.NetDevice = @NetDevice
 
 NetDeviceManager.constructor = function(computer)
 	self.computer = computer

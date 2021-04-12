@@ -8,7 +8,7 @@ ArgType.VALUE = "VALUE"
 
 Arg = {}
 
-Arg.String = String
+Arg.String = @String
 
 Arg.constructor = function(shortcut, command, type, description)
 	self.shortcut = shortcut
@@ -25,9 +25,9 @@ end function
 
 Argv = {}
 
-Argv.ArgType = ArgType
-Argv.Arg = Arg
-Argv.Error = Error
+Argv.ArgType = @ArgType
+Argv.Arg = @Arg
+Argv.Error = @Error
 
 Argv.constructor = function(defs, help)
 	self.args = params

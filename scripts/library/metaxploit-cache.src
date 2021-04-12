@@ -3,8 +3,8 @@
 
 MetaxploitCache = {}
 
-MetaxploitCache.Collection = Collection
-MetaxploitCache.FS = FS
+MetaxploitCache.Collection = @Collection
+MetaxploitCache.FS = @FS
 
 MetaxploitCache.constructor = function(mx, computer, output)
 	self.mx = mx

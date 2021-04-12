@@ -40,14 +40,28 @@ dir = fs.openFile(target)
 if not dir.is_folder then (new Error).constructor("Target is not folder...").throw()
 files = dir.get_files
 
+if (reinstall) then
+	for file in files
+		name = file.name
+		name = name.replace(".src", "")
+		if (name == "builder") then continue
+		app = appHelper.load(name)
+		if (app != null) then
+			print("Deinstall " + name + "...")
+			get_shell.launch(appHelper.load("rm"), app)
+		end if
+	end for
+end if
+
 for file in files
 	name = file.name
 	name = name.replace(".src", "")
 	if (name == "builder") then continue
-	if (not reinstall and appHelper.load(name) != null) then
+	if (appHelper.load(name) != null) then
 		print("Skipping " + name + "...")
 		continue
 	end if
 	print("Building " + name + "...")
-	get_shell.launch(appHelper.load("compile"), name)
+	args = [file.path, "--no-output"]
+	get_shell.launch(appHelper.load("compile"), args.join(" "))
 end for

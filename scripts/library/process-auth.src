@@ -2,7 +2,7 @@
 
 ProcessAuth = {}
 
-ProcessAuth.Collection = Collection
+ProcessAuth.Collection = @Collection
 
 ProcessAuth.constructor = function(fs, cc, masterpw, isAggressive)
 	self.fs = fs
